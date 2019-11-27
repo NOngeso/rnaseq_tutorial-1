@@ -43,11 +43,13 @@ Miniconda is a small, bootstrap version that includes only conda, Python, the pa
     * Sleuth
 
 8) Create environment from the downloaded `rnaseq_environment.yml`:
+    
     ```
     conda env create -f rnaseq_environment.yml
     ```
 
 9) Activate environment:
+    
     ```
     conda activate rnaseq
      ```
@@ -86,3 +88,97 @@ Miniconda is a small, bootstrap version that includes only conda, Python, the pa
     ```
 
 12) Ok, we're now all set to begin.
+
+
+## 2) Sequencing quality check
+At the beginning we first need to ensure that the quality of obtained reads from the sequencing is good enough to be used in the analysis. This step is not specific to RNA-seq analysis and should be performed before starting any analysis dealing with short sequencing reads.
+
+Quality control report can be generated with FastQC tool (https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+
+1) Open FastQC
+    
+    ```
+    fastqc
+    ```
+
+2) To run FastQC from the command line
+    
+    ```
+    fastqc data/reads/raw/male_carcass_1_1.fastq.gz 
+    ```
+    This command will create a QC report for a single read file in the same folder as the read file. 
+
+    To find out about other options of running FastQC you can use help command
+    ```
+    fastqc -h
+    ```
+
+    Out:
+    ```
+    fastqc [-o output dir] [--(no)extract] [-f fastq|bam|sam]
+           [-c contaminant file] seqfile1 .. seqfileN
+    ```
+
+    Argument `-h` tells us about all available options and how to use them. For example, if we want to save the report into a separate folder to keep our folder with reads nice and tidy, we can specify argument `-o `. The argument `-h` works with most of the command line tools.
+
+    ```
+    fastqc -o data/reads/qc/ data/reads/raw/male_carcass_1_1.fastq.gz
+    ```
+
+    In case we want to run FastQC on multiple files with a single comand we can use the wildcard character `*` when specifying the input file. It allows all the files ending in `.fastq.gz` in folder `data/reads/raw/` to be specified and used in as input files.
+
+    ```
+    fastqc -o data/reads/qc/ data/reads/raw/*.fastq.gz
+    ```
+
+3) Reports are now in `data/reads/qc/`. More info about each category from the report can be found here: https://dnacore.missouri.edu/PDF/FastQC_Manual.pdf
+
+4) To trimm the reads with low quality scores and filter out reads withouth pairs run Trimmomatic based on the following pattern:
+    
+    ```
+    trimmomatic PE -phred33 <inputFile1> <inputFile2> <outputFile1P> <outputFile1U> <outputFile2P> <outputFile2U>
+    ```
+    In our case:
+    ```
+    trimmomatic PE -phred33 data/reads/raw/male_carcass_1_1.fastq.gz data/reads/raw/male_carcass_1_1.fastq.gz data/reads/raw/male_carcass_1_1P.fastq.gz data/reads/raw/male_carcass_1_1U.fastq.gz data/reads/raw/male_carcass_1_2P.fastq.gz data/reads/raw/male_carcass_1_2U.fastq.gz
+    ```
+
+    As we need to run Trimmomatic for several samples, we can write a bash script that will execute all the commands consequently. Open a text editor and save the script as `run_trimming.sh`.
+
+    ```
+    #!/bin/bash
+
+    # male_carcass_1 
+    trimmomatic PE -phred33 data/reads/raw/male_carcass_1_1.fastq.gz data/reads/raw/male_carcass_1_1.fastq.gz data/reads/raw/male_carcass_1_1P.fastq.gz data/reads/raw/male_carcass_1_1U.fastq.gz data/reads/raw/male_carcass_1_2P.fastq.gz data/reads/raw/male_carcass_1_2U.fastq.gz
+    
+    # male_carcass_2    
+    trimmomatic PE -phred33 data/reads/raw/male_carcass_2_1.fastq.gz data/reads/raw/male_carcass_2_1.fastq.gz data/reads/raw/male_carcass_2_1P.fastq.gz data/reads/raw/male_carcass_2_1U.fastq.gz data/reads/raw/male_carcass_2_2P.fastq.gz data/reads/raw/male_carcass_2_2U.fastq.gz
+    
+    # male_rt_1
+    trimmomatic PE -phred33 data/reads/raw/male_rt_1_1.fastq.gz data/reads/raw/male_rt_1_1.fastq.gz data/reads/raw/male_rt_1_1P.fastq.gz data/reads/raw/male_rt_1_1U.fastq.gz data/reads/raw/male_rt_1_2P.fastq.gz data/reads/raw/male_rt_1_2U.fastq.gz
+    
+    ```
+
+    To run the script
+    ```
+    sh run_trimming.sh
+    ```
+
+## 2) Read alignment - Hisat2
+Filtered and paired reads need to be aligned to a reference genome before the quantification and abundance estimation. We are going to use *Anopheles gambiae* AgamP4 reference genome. AgamP4 reference genome comes in FASTA file format, one sequence per chromosome. All resources for *An. gambiae* can be found on VectorBase (https://www.vectorbase.org/)
+
+1) First step is building a reference genome index that is needed for Hisat2  aligner.
+    ```
+    hisat2-build data/ref/AgamP4.fa data/ref/AgamP4
+    ```
+2) Align the reads to the reference genome:
+    ```
+    hisat2 -x data/ref/AgamP4 -1 data/reads/1 -2 data/reads/2
+    ```
+3) Write a script with commands for all the samples, save it as `run_hisat2.sh` and run it! :bomb:
+4)
+
+ 
+
+# Other resources
+https://github.com/crazyhottommy/RNA-seq-analysis
